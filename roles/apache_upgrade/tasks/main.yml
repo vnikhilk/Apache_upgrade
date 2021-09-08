@@ -1,0 +1,65 @@
+---
+- name: creating backup directory
+  file: 
+    path: /tomcat/servers/{{ JVM_name }}_pre_config
+    state: directory
+    owner: tomcat
+    group: tomcat
+    mode: 755
+
+- name: backup of existing configuration
+  copy:
+      src: /opt/tomcat
+      dest: /tomcat/servers/{{ JVM_name }}_pre_config
+  tags:
+    - never
+
+- name: check present tomcat apache version
+  shell: sh /opt/tomcat/bin/version.sh
+  tags:
+   - never
+
+- name: shutdown the tomcat instance
+  shell: sh /opt/tomcat/bin/shutdown.sh
+
+- name: copy and unarchive the tomcat-apache latest version zip file
+  unarchive: 
+    src: /root/tomcat-apache/binaries/apache-tomcat-9.0.37.zip
+    dest: /tmp/tomcat-binaries
+
+- name: remove content from webapps, conf, logs in newer version
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /tmp/tomcat-binaries/apache-tomcat-9.0.37/webapps/*
+    - /tmp/tomcat-binaries/apache-tomcat-9.0.37/conf/*
+    - /tmp/tomcat-binaries/apache-tomcat-9.0.37/logs/*
+
+- name: change permissions for /tmp/tomcat-binaries
+  shell: chown -R tomcat:tomcat /tmp/tomcat-binaries/apache-tomcat-9.0.37/*
+
+- name: copy new version binaries to the jvm_server
+  copy:
+    src: /tmp/tomcat-binaries/apache-tomcat-9.0.37
+    dest: /tomcat/servers/{{ JVM_name }}
+  tags:
+    - never
+
+- name: copy the setup.env from backup
+  copy: 
+      src: tomcat/servers/{{ JVM_name }}_pre_config/tomcat/bin/setenv.sh
+      dest: /tomcat/servers/{{ JVM_name }}/apache-tomcat-9.0.37/bin
+  tags:
+    - never
+
+- name: change permissions for JVM_server
+  shell: chmod -R 775 /tomcat/servers/{{ JVM_name }}/apache-tomcat-9.0.37
+
+
+- name: start tomcat instance  
+  shell: sh /tomcat/servers/{{ JVM_name }}/apache-tomcat-9.0.37/bin/startup.sh
+
+- name: check present tomcat apache version
+  shell: sh /tomcat/servers/{{ JVM_name }}/apache-tomcat-9.0.37/bin/version.sh
+  register: version

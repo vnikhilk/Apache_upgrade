@@ -1,0 +1,9 @@
+---
+
+- name: Tomcat apache upgradation 
+  hosts: local
+  connection: local
+  become: yes
+  tasks:
+  - import_role:
+      name: apache_upgrade
